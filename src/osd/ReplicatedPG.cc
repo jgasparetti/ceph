@@ -4609,7 +4609,6 @@ int ReplicatedPG::do_osd_ops(OpContext *ctx, vector<OSDOp>& ops)
 	result = -EOPNOTSUPP;
 	break;
       }
-      ++ctx->num_read;
       {
 	vector<OSDOp> nops(1);
 	OSDOp& newop = nops[0];
@@ -4627,7 +4626,6 @@ int ReplicatedPG::do_osd_ops(OpContext *ctx, vector<OSDOp>& ops)
 	result = -EOPNOTSUPP;
 	break;
       }
-      ++ctx->num_write;
       {
 	//_dout_lock.Lock();
 	//osd_op.data.hexdump(*_dout);
