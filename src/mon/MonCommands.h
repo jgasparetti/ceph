@@ -215,9 +215,6 @@ COMMAND("auth del " \
 /*
  * Monitor commands (Monitor.cc)
  */
-COMMAND_WITH_FLAG("compact", "cause compaction of monitor's leveldb storage", \
-	     "mon", "rw", "cli,rest", NOFORWARD)
-COMMAND("scrub", "scrub the monitor stores", "mon", "rw", "cli,rest")
 COMMAND("fsid", "show cluster FSID/UUID", "mon", "r", "cli,rest")
 COMMAND("log name=logtext,type=CephString,n=N", \
 	"log supplied text to the monitor log", "mon", "rw", "cli,rest")
@@ -237,10 +234,6 @@ COMMAND("quorum_status", "report status of monitor quorum", \
 	"mon", "r", "cli,rest")
 COMMAND_WITH_FLAG("mon_status", "report status of monitors", "mon", "r", "cli,rest",
 	     NOFORWARD)
-COMMAND("sync force " \
-	"name=validate1,type=CephChoices,strings=--yes-i-really-mean-it,req=false " \
-	"name=validate2,type=CephChoices,strings=--i-know-what-i-am-doing,req=false", \
-	"force sync of and clear monitor store", "mon", "rw", "cli,rest")
 COMMAND_WITH_FLAG("heap " \
 	     "name=heapcmd,type=CephChoices,strings=dump|start_profiler|stop_profiler|release|stats", \
 	     "show heap usage info (available only if compiled with tcmalloc)", \
@@ -253,6 +246,17 @@ COMMAND("tell " \
 	"send a command to a specific daemon", "mon", "rw", "cli,rest")
 COMMAND_WITH_FLAG("version", "show mon daemon version", "mon", "r", "cli,rest",
 	     NOFORWARD)
+
+COMMAND_WITH_FLAG("mon compact", \
+    "cause compaction of monitor's leveldb storage", \
+    "mon", "rw", "cli,rest", NOFORWARD)
+COMMAND("mon scrub", \
+    "scrub the monitor stores",
+    "mon", "rw", "cli,rest")
+COMMAND_WITH_FLAG("mon sync force " \
+	"name=validate1,type=CephChoices,strings=--yes-i-really-mean-it,req=false " \
+	"name=validate2,type=CephChoices,strings=--i-know-what-i-am-doing,req=false", \
+	"force sync of and clear monitor store", "mon", "rw", "cli,rest", NOFORWARD)
 
 /*
  * MDS commands (MDSMonitor.cc)

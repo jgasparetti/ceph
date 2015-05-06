@@ -2673,8 +2673,14 @@ void Monitor::handle_command(MMonCommand *m)
     return;
   }
   if (module == "mon") {
-    monmon()->dispatch(m);
-    return;
+
+    // these are the commands that the Monitor class should handle
+    if (prefix != "mon scrub" &&
+        prefix != "mon sync force" &&
+        prefix != "mon compact") {
+      monmon()->dispatch(m);
+      return;
+    }
   }
   if (module == "auth") {
     authmon()->dispatch(m);
@@ -2704,7 +2710,17 @@ void Monitor::handle_command(MMonCommand *m)
     return;
   }
 
-  if (prefix == "scrub") {
+  if (prefix == "scrub" ||
+      prefix == "compact" ||
+      prefix == "sync force") {
+    reply_command(m, -ENOTSUP,
+                  "operation deprecated; please use 'mon " +
+                  prefix + "' instead",
+                  rdata, 0);
+    return;
+  }
+
+  if (prefix == "mon scrub") {
     wait_for_paxos_write();
     if (is_leader()) {
       int r = scrub();
@@ -2715,9 +2731,7 @@ void Monitor::handle_command(MMonCommand *m)
       reply_command(m, -EAGAIN, "no quorum", rdata, 0);
     }
     return;
-  }
-
-  if (prefix == "compact") {
+  } else if (prefix == "mon compact") {
     dout(1) << "triggering manual compaction" << dendl;
     utime_t start = ceph_clock_now(g_ceph_context);
     store->compact();
@@ -2728,8 +2742,22 @@ void Monitor::handle_command(MMonCommand *m)
     oss << "compacted leveldb in " << end;
     rs = oss.str();
     r = 0;
-  }
-  else if (prefix == "injectargs") {
+  } else if (prefix == "mon sync force") {
+    string validate1, validate2;
+    cmd_getval(g_ceph_context, cmdmap, "validate1", validate1);
+    cmd_getval(g_ceph_context, cmdmap, "validate2", validate2);
+    if (validate1 != "--yes-i-really-mean-it" ||
+	validate2 != "--i-know-what-i-am-doing") {
+      r = -EINVAL;
+      rs = "are you SURE? this will mean the monitor store will be "
+	   "erased.  pass '--yes-i-really-mean-it "
+	   "--i-know-what-i-am-doing' if you really do.";
+      goto out;
+    }
+    sync_force(f.get(), ds);
+    rs = ds.str();
+    r = 0;
+  } else if (prefix == "injectargs") {
     vector<string> injected_args;
     cmd_getval(g_ceph_context, cmdmap, "injected_args", injected_args);
     if (!injected_args.empty()) {
@@ -2854,21 +2882,6 @@ void Monitor::handle_command(MMonCommand *m)
       f->flush(ds);
     rdata.append(ds);
     rs = "";
-    r = 0;
-  } else if (prefix == "sync force") {
-    string validate1, validate2;
-    cmd_getval(g_ceph_context, cmdmap, "validate1", validate1);
-    cmd_getval(g_ceph_context, cmdmap, "validate2", validate2);
-    if (validate1 != "--yes-i-really-mean-it" ||
-	validate2 != "--i-know-what-i-am-doing") {
-      r = -EINVAL;
-      rs = "are you SURE? this will mean the monitor store will be "
-	   "erased.  pass '--yes-i-really-mean-it "
-	   "--i-know-what-i-am-doing' if you really do.";
-      goto out;
-    }
-    sync_force(f.get(), ds);
-    rs = ds.str();
     r = 0;
   } else if (prefix == "heap") {
     if (!ceph_using_tcmalloc())
