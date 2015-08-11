@@ -85,38 +85,6 @@ function bench() {
     echo -e "$result\t$plugin\t$k\t$m\t$workload\t$iterations\t$size\t$erasures\t$command ""$@"
 }
 
-function benchShec() {
-    local plugin=$1
-    shift
-    local k=$1
-    shift
-    local m=$1
-    shift
-    local c=$1
-    shift
-    local workload=$1
-    shift
-    local iterations=$1
-    shift
-    local size=$1
-    shift
-    local erasures=$1
-    shift
-    command=$(echo $CEPH_ERASURE_CODE_BENCHMARK \
-        --plugin $plugin \
-        --workload $workload \
-        --iterations $iterations \
-        --size $size \
-        --erasures $erasures \
-        --parameter k=$k \
-        --parameter m=$m \
-        --parameter c=$c \
-        --parameter directory=$PLUGIN_DIRECTORY)
-    result=$($command "$@")
-    echo -e "$result\t$plugin\t$k\t$m\t$c\t$workload\t$iterations\t$size\t$erasures\t$command ""$@"
-}
-
-
 function example_test() {
     local plugin=example
     local size
@@ -139,52 +107,6 @@ function packetsize() {
     echo $p
 }
 
-function shec_test() {
-    local plugin=shec
-    local w=8
-    local VECTOR_WORDSIZE=16
-    local ks="6 10"
-    declare -A k2ms
-    k2ms[6]="3 4"
-    k2ms[10]="3 4"
-    declare -A k3cs
-    k3cs[3]="2 3"
-    k3cs[4]="3 4"
-    for technique in single multiple ; do
-        for size in $SIZES ; do
-            echo "serie encode_${technique}_${size}"
-            for k in $ks ; do
-                for m in ${k2ms[$k]} ; do
-                    for c in ${k3cs[$m]} ; do
-                        benchShec $plugin $k $m $c encode $(($TOTAL_SIZE / $size)) $size 0 \
-                            --parameter packetsize=$(packetsize $k $w $VECTOR_WORDSIZE $size) \
-                            ${PARAMETERS} \
-                            --parameter technique=$technique
-                    done
-                done
-            done
-        done
-    done
-    for technique in single multiple ; do
-        for size in $SIZES ; do
-            echo "serie decode_${technique}_${size}"
-            for k in $ks ; do
-                for m in ${k2ms[$k]} ; do
-		    for c in ${k3cs[$m]} ; do
-                        echo
-                        for erasures in $(seq 1 $c) ; do
-                            benchShec $plugin $k $m $c decode $(($TOTAL_SIZE / $size)) $size $erasures \
-                                --parameter packetsize=$(packetsize $k $w $VECTOR_WORDSIZE  $size) \
-                                ${PARAMETERS} \
-                                --parameter technique=$technique
-                       done
-                    done
-                done
-            done
-        done
-    done
-}
-
 function jerasure_test() {
     local plugin=jerasure
     local w=8
@@ -201,10 +123,11 @@ function jerasure_test() {
             echo "serie encode_${technique}_${size}"
             for k in $ks ; do
                 for m in ${k2ms[$k]} ; do
-                        bench $plugin $k $m encode $(($TOTAL_SIZE / $size)) $size 0 \
+                    bench $plugin $k $m encode $(($TOTAL_SIZE / $size)) $size 0 \
                         --parameter packetsize=$(packetsize $k $w $VECTOR_WORDSIZE $size) \
                         ${PARAMETERS} \
                         --parameter technique=$technique
+
                 done
             done
         done
@@ -287,32 +210,6 @@ function fplot() {
     done
     echo '];'
 }
-
-function fplotshec() {
-    local plugin=$1
-    local serie
-    ${plugin}_test | while read seconds total plugin k m c workload iteration size erasures rest ; do
-        if [ -z $seconds ] ; then
-            echo null,
-        elif [ $seconds = serie ] ; then
-            if [ "$serie" ] ; then
-                echo '];'
-            fi
-            local serie=`echo $total | sed 's/cauchy_\([0-9]\)/cauchy_good_\1/g'`
-            echo "var $serie = ["
-        else
-            local x
-            if [ $workload = encode ] ; then
-                x=$k"<br>"$m"<br>"$c
-            else
-                x=$k"<br>"$m"<br>"$c"<br>"$erasures
-            fi
-            echo "[ '$x', " $(echo "( $total / 1024 / 1024 ) / $seconds" | bc -ql) " ], "
-        fi
-    done
-    echo '];'
-}
-
 
 function main() {
     bench_header
@@ -519,8 +416,6 @@ EOF
     run_test
 
 elif [ "$1" = fplot ] ; then
-    "$@"
-elif [ "$1" = fplotshec ] ; then
     "$@"
 else
     main
